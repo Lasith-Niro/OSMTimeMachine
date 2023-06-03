@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>OSMTimeMachine</title>
+    <!-- Include necessary CSS and JavaScript libraries -->
+    <!-- Example: Leaflet.js for the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- Example: noUiSlider for the slider -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.css"
+        integrity="sha512-MKxcSu/LDtbIYHBNAWUQwfB3iVoG9xeMCm32QV5hZ/9lFaQZJVaXfz9aFa0IZExWzCpm7OWvp9zq9gVip/nLMg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"
+        integrity="sha512-UOJe4paV6hYWBnS0c9GnIRH8PLm2nFK22uhfAvsTIqd3uwnWsVri1OPn5fJYdLtGY3wB11LGHJ4yPU1WFJeBYQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <style>
+        #map {
+            height: 600px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- bootstrap container fluid -->
+    <div class="container">
+        <h1><center>OSMTimeMachine</center></h1>
+        <form class="form-inline" action="/" method="post">
+            <div class="form-group">
+                <!-- <label for="way_id">Way ID:</label> -->
+                <input class="form-control" type="text" name="way_id" placeholder="Enter Way ID" required>
+            </div>
+            <button class="btn btn-primary" type="submit">Go</button>
+
+
+        </form>
+        <div id="osm">
+            <!-- show link to osm with way_id -->
+            <label for="way" id="way">Way </label> 
+
+        </div>
+        <div id="map"></div>
+        <br><br>
+        <div id="slider" style="width: 500px;"></div>
+        <br>
+        <div id="history">
+            <h2>Way History:</h2>
+            <!-- <p id="history"></p> -->
+        </div>
+        <div class="text-right col-md-12">
+            <a href="https://github.com/Lasith-Niro/OSMTimeMachine">GitHub</a>
+          </div>
+    </div>
+
+
+    <!-- Include your custom JavaScript to initialize the map -->
+    <script>
+        var map = L.map('map').setView([53.3566445, -6.2811139], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+            maxZoom: 20,
+        }).addTo(map);
+
+        var coordinates = JSON.parse('{{ coordinates|safe }}');
+        var TimeMachine = {};
+        var colorList = [];
+
+        // update way label
+        var wayId = '{{ way_id }}';
+        var wayElement = document.getElementById('way');
+        wayElement.innerHTML = '<strong>Way:</strong> ' + wayId;
+        
+
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF';
+            var color = '#';
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        for (var i = 0; i < coordinates.length; i++) {
+            var geometry = coordinates[i].geometry;
+            var version = coordinates[i].version;
+            var polygonPoints = [];
+            for (var j = 0; j < geometry.length; j++) {
+                polygonPoints.push([geometry[j]['lat'], geometry[j]['lon']]);
+            }
+            TimeMachine[version] = polygonPoints;
+            colorList.push(getRandomColor());
+        }
+
+        L.polygon(TimeMachine['1']).addTo(map);
+
+        // Initialize the slider
+        var slider = document.getElementById('slider');
+            noUiSlider.create(slider, {
+                start: 1,
+                range: {
+                    'min': 1,
+                    'max': Object.keys(TimeMachine).length,
+                },
+                step: 1,
+                connect: "lower",
+                pips: {
+                    mode: 'steps',
+                    stepped: true
+                }
+            });
+
+        // Update the displayed polygon based on the selected version
+        slider.noUiSlider.on('update', function (values, handle) {
+            var version = parseInt(values[handle]);
+            var historyElement = document.getElementById('history');
+            historyElement.innerHTML = '<strong>Version:</strong> ' + version + '<br>' +
+                '<strong>Timestamp:</strong> ' + coordinates[version - 1].timestamp + '<br>' +
+                '<strong>User:</strong> ' + coordinates[version - 1].user + '<br>' +
+                '<strong>Geometry:</strong> ' + JSON.stringify(coordinates[version - 1].geometry);
+
+            // Remove old polygon
+            map.eachLayer(function (layer) {
+                if (layer instanceof L.Polygon) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            var polygon = L.polygon(TimeMachine[version], {
+                color: colorList[version - 1],
+                fillColor: "#1a496b",
+                fillOpacity: 0,
+                weight: 5
+            }).addTo(map);
+        });
+
+        // Get the elements
+        var wayIdInput = document.getElementById('way_id');
+        var openWayBtn = document.getElementById('open_way_btn');
+
+        // Add event listener to the button
+        openWayBtn.addEventListener('click', function() {
+            var wayId = wayIdInput.value;
+            var url = 'https://www.openstreetmap.org/way/' + wayId;
+            window.open(url, '_blank');
+        });
+        
+    </script>
+</body>
+
+</html>
