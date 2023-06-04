@@ -46,7 +46,7 @@
         </div>
         <div id="map"></div>
         <br><br>
-        <div id="slider" style="width: 500px;"></div>
+        <div id="slider" style="width: 1100px;"></div>
         <br>
         <div id="history">
             <h2>Way History:</h2>
@@ -80,7 +80,12 @@
             var letters = '0123456789ABCDEF';
             var color = '#';
             for (var i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
+                // 0 < index < 8
+                var index = Math.floor(Math.random() * 8);
+                color += letters[index];
+                // var index = Math.floor(Math.random() * 8) + 8;
+                // color += letters[index];
+                // color += letters[Math.floor(Math.random() * 16)];
             }
             return color;
         }
@@ -95,6 +100,8 @@
             TimeMachine[version] = polygonPoints;
             colorList.push(getRandomColor());
         }
+        // map zoom to coordinates[0]
+        map.setView([coordinates[0].geometry[0]['lat'], coordinates[0].geometry[0]['lon']], 18);
 
         L.polygon(TimeMachine['1']).addTo(map);
 
@@ -121,7 +128,7 @@
             historyElement.innerHTML = '<strong>Version:</strong> ' + version + '<br>' +
                 '<strong>Timestamp:</strong> ' + coordinates[version - 1].timestamp + '<br>' +
                 '<strong>User:</strong> ' + coordinates[version - 1].user + '<br>' +
-                '<strong>Geometry:</strong> ' + JSON.stringify(coordinates[version - 1].geometry);
+                '<strong>Tags:</strong> ' + JSON.stringify(coordinates[version - 1].tags) + '<br>';
 
             // Remove old polygon
             map.eachLayer(function (layer) {
@@ -132,23 +139,11 @@
 
             var polygon = L.polygon(TimeMachine[version], {
                 color: colorList[version - 1],
-                fillColor: "#1a496b",
-                fillOpacity: 0,
+                fillColor: colorList[version - 1],
+                fillOpacity: 0.5,
                 weight: 5
             }).addTo(map);
-        });
-
-        // Get the elements
-        var wayIdInput = document.getElementById('way_id');
-        var openWayBtn = document.getElementById('open_way_btn');
-
-        // Add event listener to the button
-        openWayBtn.addEventListener('click', function() {
-            var wayId = wayIdInput.value;
-            var url = 'https://www.openstreetmap.org/way/' + wayId;
-            window.open(url, '_blank');
-        });
-        
+        });        
     </script>
 </body>
 
