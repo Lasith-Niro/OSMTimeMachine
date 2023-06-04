@@ -36,8 +36,8 @@ def index():
         
         way_history = fetch_way_history(way_id, start_date, end_date)
         # save way_history to a file
-        with open('way_history.json', 'w') as f:
-            json.dump(way_history, f)
+        # with open('way_history.json', 'w') as f:
+        #     json.dump(way_history, f)
 
                 
         # Extract the coordinates from the JSON response
