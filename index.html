@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OSMTimeMachine - Explore OpenStreetMap History</title>
-    
+
     <!-- Leaflet.js for the map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -35,16 +35,16 @@
             --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             --error-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            
+
             --bg-dark: #0f0f23;
             --bg-card: rgba(255, 255, 255, 0.05);
             --glass-bg: rgba(255, 255, 255, 0.08);
             --glass-border: rgba(255, 255, 255, 0.18);
-            
+
             --text-primary: #ffffff;
             --text-secondary: rgba(255, 255, 255, 0.7);
             --text-muted: rgba(255, 255, 255, 0.5);
-            
+
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
             --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.15);
             --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -54,7 +54,7 @@
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-dark);
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(102, 126, 234, 0.15) 0, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(118, 75, 162, 0.15) 0, transparent 50%);
             color: var(--text-primary);
@@ -206,6 +206,10 @@
             margin-bottom: 0.25rem;
         }
 
+        .alert.hidden {
+            display: none;
+        }
+
         /* Loading Spinner */
         .loading-overlay {
             position: fixed;
@@ -219,6 +223,8 @@
             align-items: center;
             justify-content: center;
             z-index: 9999;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .loading-overlay.active {
@@ -234,8 +240,15 @@
             animation: spin 1s linear infinite;
         }
 
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Way Info Badge */
@@ -255,6 +268,12 @@
 
         .way-badge-icon {
             font-size: 1.2rem;
+        }
+
+        .way-badge a {
+            margin-left: 0.5rem;
+            color: white;
+            text-decoration: underline;
         }
 
         /* Map Styles */
@@ -436,12 +455,18 @@
             color: var(--text-muted);
         }
 
+        /* Sections visibility */
+        .hidden {
+            display: none !important;
+        }
+
         /* Animations */
         @keyframes fadeIn {
             from {
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -453,6 +478,7 @@
                 opacity: 0;
                 transform: translateY(-20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -464,6 +490,7 @@
                 opacity: 0;
                 transform: translateY(-10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -507,6 +534,7 @@
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
+        <div class="loading-text">Fetching way history...</div>
     </div>
 
     <div class="container">
@@ -516,232 +544,66 @@
         </header>
 
         <div class="glass-card">
-            {% if error %}
-            <div class="alert alert-error" role="alert">
+            <div class="alert alert-error hidden" id="errorAlert" role="alert">
                 <span class="alert-icon">⚠️</span>
                 <div class="alert-content">
                     <div class="alert-title">Error</div>
-                    <div>{{ error }}</div>
+                    <div id="errorMessage"></div>
                 </div>
             </div>
-            {% endif %}
 
-            <form class="search-form" action="/" method="post" id="searchForm">
+            <form class="search-form" id="searchForm">
                 <div class="form-group">
-                    <input 
-                        class="form-input" 
-                        type="text" 
-                        name="way_id" 
-                        id="wayIdInput"
-                        placeholder="Enter OSM Way ID (e.g., 5013364)" 
-                        required
-                        aria-label="Way ID"
-                        {% if way_id %}value="{{ way_id }}"{% endif %}
-                    >
+                    <input class="form-input" type="text" name="way_id" id="wayIdInput"
+                        placeholder="Enter OSM Way ID (e.g., 5013364)" required aria-label="Way ID">
                 </div>
                 <button class="btn" type="submit" id="submitBtn">
                     <span id="btnText">🔍 Explore History</span>
                 </button>
             </form>
 
-            {% if way_id and not error %}
-            <div class="way-badge">
-                <span class="way-badge-icon">📍</span>
-                <span>Way ID: <strong>{{ way_id }}</strong></span>
-                <a href="https://www.openstreetmap.org/way/{{ way_id }}" target="_blank" style="margin-left: 0.5rem; color: white; text-decoration: underline;">View on OSM</a>
-            </div>
-
-            <div id="map" role="region" aria-label="Interactive map"></div>
-
-            <div class="slider-container">
-                <div class="slider-label">Timeline Navigator</div>
-                <div id="slider"></div>
-            </div>
-
-            <div class="history-card" id="historyCard">
-                <div class="history-title">Version Details</div>
-                <div class="history-grid" id="historyContent">
-                    <!-- History content will be populated by JavaScript -->
+            <div id="wayBadgeContainer" class="hidden">
+                <div class="way-badge">
+                    <span class="way-badge-icon">📍</span>
+                    <span>Way ID: <strong id="wayIdDisplay"></strong></span>
+                    <a href="#" id="osmLink" target="_blank" rel="noopener">View on OSM</a>
                 </div>
             </div>
-            {% else %}
-            <div class="empty-state">
+
+            <div id="mapContainer" class="hidden">
+                <div id="map" role="region" aria-label="Interactive map"></div>
+
+                <div class="slider-container">
+                    <div class="slider-label">Timeline Navigator</div>
+                    <div id="slider"></div>
+                </div>
+
+                <div class="history-card" id="historyCard">
+                    <div class="history-title">Version Details</div>
+                    <div class="history-grid" id="historyContent">
+                        <!-- History content will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="empty-state" id="emptyState">
                 <div class="empty-state-icon">🗺️</div>
                 <div class="empty-state-title">Ready to Explore</div>
                 <div class="empty-state-text">Enter an OpenStreetMap way ID above to view its historical changes</div>
             </div>
-            {% endif %}
         </div>
 
         <footer>
             <p>
-                Made with 💜 | 
-                <a href="https://github.com/Lasith-Niro/OSMTimeMachine" target="_blank" rel="noopener">GitHub</a> | 
-                Data © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a> contributors
+                Made with 💜 |
+                <a href="https://github.com/Lasith-Niro/OSMTimeMachine" target="_blank" rel="noopener">GitHub</a> |
+                Data © <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>
+                contributors
             </p>
         </footer>
     </div>
 
-    <script>
-        // Show loading overlay on form submit
-        const searchForm = document.getElementById('searchForm');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        
-        if (searchForm) {
-            searchForm.addEventListener('submit', function() {
-                loadingOverlay.classList.add('active');
-            });
-        }
-
-        {% if coordinates %}
-        // Parse coordinates data
-        const coordinates = JSON.parse('{{ coordinates|safe }}');
-        
-        if (coordinates && coordinates.length > 0) {
-            // Initialize map
-            const firstCoord = coordinates[0].geometry[0];
-            const map = L.map('map').setView([firstCoord.lat, firstCoord.lon], 18);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
-                maxZoom: 20,
-            }).addTo(map);
-
-            // Create TimeMachine object and color palette
-            const TimeMachine = {};
-            const colorPalette = [
-                '#667eea', '#764ba2', '#f093fb', '#f5576c',
-                '#4facfe', '#00f2fe', '#43e97b', '#38f9d7',
-                '#fa709a', '#fee140', '#30cfd0', '#330867'
-            ];
-
-            // Process coordinates into TimeMachine format
-            coordinates.forEach((coord, index) => {
-                const geometry = coord.geometry;
-                const version = coord.version;
-                const polygonPoints = geometry.map(point => [point.lat, point.lon]);
-                TimeMachine[version] = polygonPoints;
-            });
-
-            // Add initial polygon
-            let currentPolygon = L.polygon(TimeMachine[coordinates[0].version], {
-                color: colorPalette[0],
-                fillColor: colorPalette[0],
-                fillOpacity: 0.4,
-                weight: 3
-            }).addTo(map);
-
-            // Initialize slider
-            const slider = document.getElementById('slider');
-            const maxVersion = coordinates.length;
-            
-            noUiSlider.create(slider, {
-                start: 1,
-                range: {
-                    'min': 1,
-                    'max': maxVersion,
-                },
-                step: 1,
-                connect: "lower",
-                pips: {
-                    mode: 'steps',
-                    stepped: true,
-                    density: maxVersion > 20 ? 5 : 2
-                },
-                tooltips: {
-                    to: function(value) {
-                        return 'v' + Math.round(value);
-                    }
-                }
-            });
-
-            // Format timestamp
-            function formatTimestamp(timestamp) {
-                if (!timestamp || timestamp === 'Unknown') return 'Unknown';
-                const date = new Date(timestamp);
-                return date.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            }
-
-            // Update history display
-            function updateHistory(index) {
-                const coord = coordinates[index];
-                const historyContent = document.getElementById('historyContent');
-                
-                // Build tags HTML
-                let tagsHTML = '';
-                if (coord.tags && Object.keys(coord.tags).length > 0) {
-                    const tagElements = Object.entries(coord.tags).map(([key, value]) => 
-                        `<span class="tag">${key}: ${value}</span>`
-                    ).join('');
-                    tagsHTML = `
-                        <div class="history-item tags-container">
-                            <div class="history-item-label">Tags</div>
-                            <div class="tag-list">${tagElements}</div>
-                        </div>
-                    `;
-                } else {
-                    tagsHTML = `
-                        <div class="history-item tags-container">
-                            <div class="history-item-label">Tags</div>
-                            <div class="history-item-value" style="color: var(--text-muted);">No tags</div>
-                        </div>
-                    `;
-                }
-
-                historyContent.innerHTML = `
-                    <div class="history-item">
-                        <div class="history-item-label">Version</div>
-                        <div class="history-item-value">${coord.version}</div>
-                    </div>
-                    <div class="history-item">
-                        <div class="history-item-label">Timestamp</div>
-                        <div class="history-item-value">${formatTimestamp(coord.timestamp)}</div>
-                    </div>
-                    <div class="history-item">
-                        <div class="history-item-label">Editor</div>
-                        <div class="history-item-value">${coord.user || 'Unknown'}</div>
-                    </div>
-                    ${tagsHTML}
-                `;
-            }
-
-            // Update polygon on slider change
-            slider.noUiSlider.on('update', function(values, handle) {
-                const index = parseInt(values[handle]) - 1;
-                const coord = coordinates[index];
-                
-                // Update history display
-                updateHistory(index);
-
-                // Remove old polygon
-                if (currentPolygon) {
-                    map.removeLayer(currentPolygon);
-                }
-
-                // Add new polygon with color
-                const colorIndex = index % colorPalette.length;
-                currentPolygon = L.polygon(TimeMachine[coord.version], {
-                    color: colorPalette[colorIndex],
-                    fillColor: colorPalette[colorIndex],
-                    fillOpacity: 0.4,
-                    weight: 3
-                }).addTo(map);
-
-                // Fit map to polygon bounds
-                map.fitBounds(currentPolygon.getBounds(), { padding: [50, 50] });
-            });
-
-            // Initialize with first version
-            updateHistory(0);
-        }
-        {% endif %}
-    </script>
+    <script src="app.js"></script>
 </body>
 
 </html>
