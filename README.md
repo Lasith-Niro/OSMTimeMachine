@@ -13,7 +13,7 @@ OSMTimeMachine is a web application that allows you to explore the historical ch
 
 ## 🚀 Live Demo
 
-Visit: [https://lasith-niro.github.io/osmtimemachine](https://lasith-niro.github.io/osmtimemachine)
+Visit: [https://lasith-niro.github.io/osmtimemachine](https://lasith-niro.github.io/OSMTimeMachine/)
 
 ## 📦 Deployment Options
 
