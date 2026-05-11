@@ -52,9 +52,13 @@ def fetch_way_history(way_id):
         logger.info(f"Fetching way history for way ID: {way_id}")
         
         # Add timeout to prevent hanging
+        headers = {
+            'User-Agent': 'OSMTimeMachine/1.0'
+        }
         response = requests.get(
             overpass_url, 
             params={'data': overpass_query},
+            headers=headers,
             timeout=30
         )
         
