@@ -83,7 +83,7 @@ This project is licensed under the [AGPL-3.0](LICENSE).
 
 ## 📸 Screenshots
 
-![Demo](images/1.png)
+![Demo](images/3.png)
 
 ## 📧 Contact
 

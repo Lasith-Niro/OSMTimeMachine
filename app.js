@@ -7,6 +7,7 @@ let currentPolygon = null;
 let coordinates = [];
 let TimeMachine = {};
 let slider = null;
+let tagsViewMode = 'list'; // 'list' or 'json'
 
 // Color palette for polygons
 const colorPalette = [
@@ -199,6 +200,47 @@ function formatTimestamp(timestamp) {
 }
 
 /**
+ * Escape HTML characters to prevent XSS
+ */
+function escapeHTML(str) {
+    if (typeof str !== 'string') {
+        str = String(str);
+    }
+    return str.replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+
+/**
+ * Toggle the view mode for OSM tags between badged list and JSON string
+ */
+function toggleTagsView() {
+    tagsViewMode = tagsViewMode === 'list' ? 'json' : 'list';
+    
+    const tagsList = document.getElementById('tagsListContainer');
+    const tagsJson = document.getElementById('tagsJsonContainer');
+    const btn = document.getElementById('toggleTagsViewBtn');
+
+    if (!tagsList || !tagsJson || !btn) return;
+
+    if (tagsViewMode === 'json') {
+        tagsList.classList.add('hidden');
+        tagsJson.classList.remove('hidden');
+        btn.textContent = '🏷️ View Badges';
+    } else {
+        tagsList.classList.remove('hidden');
+        tagsJson.classList.add('hidden');
+        btn.textContent = '📄 View JSON';
+    }
+}
+
+/**
  * Update history display
  */
 function updateHistory(index) {
@@ -207,19 +249,30 @@ function updateHistory(index) {
     // Build tags HTML
     let tagsHTML = '';
     if (coord.tags && Object.keys(coord.tags).length > 0) {
+        const showJson = (tagsViewMode === 'json');
         const tagElements = Object.entries(coord.tags)
-            .map(([key, value]) => `<span class="tag">${key}: ${value}</span>`)
+            .map(([key, value]) => `<span class="tag">${escapeHTML(key)}: ${escapeHTML(value)}</span>`)
             .join('');
+        const jsonContent = escapeHTML(JSON.stringify(coord.tags, null, 2));
+
         tagsHTML = `
             <div class="history-item tags-container">
-                <div class="history-item-label">Tags</div>
-                <div class="tag-list">${tagElements}</div>
+                <div class="tags-header">
+                    <div class="history-item-label" style="margin-bottom: 0;">Tags</div>
+                    <button type="button" id="toggleTagsViewBtn" class="btn-toggle">
+                        ${showJson ? '🏷️ View Badges' : '📄 View JSON'}
+                    </button>
+                </div>
+                <div class="tag-list ${showJson ? 'hidden' : ''}" id="tagsListContainer">${tagElements}</div>
+                <pre class="tags-json ${showJson ? '' : 'hidden'}" id="tagsJsonContainer"><code>${jsonContent}</code></pre>
             </div>
         `;
     } else {
         tagsHTML = `
             <div class="history-item tags-container">
-                <div class="history-item-label">Tags</div>
+                <div class="tags-header">
+                    <div class="history-item-label" style="margin-bottom: 0;">Tags</div>
+                </div>
                 <div class="history-item-value" style="color: var(--text-muted);">No tags</div>
             </div>
         `;
@@ -410,8 +463,48 @@ function loadFromURL() {
     }
 }
 
+/**
+ * Initialize theme based on localStorage and setup theme toggle button
+ */
+function initializeTheme() {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (!themeBtn) return;
+    const themeIcon = themeBtn.querySelector('.theme-icon');
+
+    // Sync button icon with current attribute on documentElement (set by inline script)
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    if (currentTheme === 'dark') {
+        themeIcon.textContent = '🌙';
+    } else {
+        themeIcon.textContent = '☀️';
+    }
+
+    themeBtn.addEventListener('click', () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (isDark) {
+            document.documentElement.removeAttribute('data-theme');
+            themeIcon.textContent = '☀️';
+            localStorage.setItem('theme', 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            themeIcon.textContent = '🌙';
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+}
+
 // Event listeners
 searchForm.addEventListener('submit', handleSubmit);
 
-// Load from URL on page load
-window.addEventListener('DOMContentLoaded', loadFromURL);
+// Event listener delegation for dynamic elements in history content
+historyContent.addEventListener('click', (event) => {
+    if (event.target && event.target.id === 'toggleTagsViewBtn') {
+        toggleTagsView();
+    }
+});
+
+// Load from URL and initialize theme on page load
+window.addEventListener('DOMContentLoaded', () => {
+    initializeTheme();
+    loadFromURL();
+});
